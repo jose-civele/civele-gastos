@@ -277,8 +277,10 @@ Otro</textarea></div>
       <div class="ai-row"><div class="ai-key">Receptor</div><div class="ai-val shimmer" id="xReceptor">—</div></div>
       <div class="ai-row"><div class="ai-key">NIT / CC</div><div class="ai-val shimmer" id="xNit">—</div></div>
       <div class="ai-row"><div class="ai-key">Fecha</div><div class="ai-val shimmer" id="xFecha">—</div></div>
+      <div class="ai-row"><div class="ai-key">Concepto</div><div class="ai-val shimmer" id="xConcepto">—</div></div>
       <div class="ai-row"><div class="ai-key">Ciudad</div><div class="ai-val shimmer" id="xCiudad">—</div></div>
       <div class="ai-row"><div class="ai-key">Tipo doc</div><div class="ai-val shimmer" id="xTipo">—</div></div>
+      <div class="ai-row"><div class="ai-key">N° Factura</div><div class="ai-val shimmer" id="xNumFact">—</div></div>
       <div class="ai-row"><div class="ai-key">IVA detectado</div><div class="ai-val shimmer" id="xIva">—</div></div>
       <div class="ai-row"><div class="ai-key">Impoconsumo</div><div class="ai-val shimmer" id="xImpo">—</div></div>
     </div>
@@ -478,7 +480,7 @@ async function analizarFoto(){
     document.getElementById("xReceptor").textContent=f(d.receptor);
     document.getElementById("xNit").textContent=f(d.nit);
     document.getElementById("xFecha").textContent=f(d.fecha);
-    document.getElementById("xCiudad").textContent=(d.ciudad document.getElementById("xCiudad").textContent=f(d.ciudad);document.getElementById("xCiudad").textContent=f(d.ciudad); d.ciudad.trim()) ? d.ciudad : "";
+    document.getElementById("xCiudad").textContent=f(d.ciudad);
     document.getElementById("xTipo").textContent=f(d.tipo_documento);
     document.getElementById("xIva").textContent=d.iva>0?`$${Number(d.iva).toLocaleString("es-CO")}`+(d.porcentaje_iva?` (${d.porcentaje_iva}%)`:""):"No aplica / no visible";
     document.getElementById("xImpo").textContent=d.impoconsumo>0?`$${Number(d.impoconsumo).toLocaleString("es-CO")}`:"No aplica";
