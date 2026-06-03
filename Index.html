@@ -462,7 +462,7 @@ function onPhoto(e){
 
 async function analizarFoto(){
   goTo(2);
-  const ids=["xReceptor","xNit","xFecha","xCiudad","xTipo","xIva","xImpo"];
+  const ids=["xReceptor","xNit","xFecha","xConcepto","xCiudad","xTipo","xNumFact","xIva","xImpo"];
   ids.forEach(id=>{const el=document.getElementById(id);el.classList.add("shimmer");el.textContent="—";});
   document.getElementById("aiDot").classList.remove("idle");
   document.getElementById("aiStatus").textContent="IA CIVELE analizando imagen...";
@@ -478,7 +478,7 @@ async function analizarFoto(){
     document.getElementById("xReceptor").textContent=f(d.receptor);
     document.getElementById("xNit").textContent=f(d.nit);
     document.getElementById("xFecha").textContent=f(d.fecha);
-    document.getElementById("xCiudad").textContent=f(d.ciudad);
+    document.getElementById("xCiudad").textContent=(d.ciudad document.getElementById("xCiudad").textContent=f(d.ciudad);document.getElementById("xCiudad").textContent=f(d.ciudad); d.ciudad.trim()) ? d.ciudad : "";
     document.getElementById("xTipo").textContent=f(d.tipo_documento);
     document.getElementById("xIva").textContent=d.iva>0?`$${Number(d.iva).toLocaleString("es-CO")}`+(d.porcentaje_iva?` (${d.porcentaje_iva}%)`:""):"No aplica / no visible";
     document.getElementById("xImpo").textContent=d.impoconsumo>0?`$${Number(d.impoconsumo).toLocaleString("es-CO")}`:"No aplica";
@@ -700,4 +700,4 @@ function saveConfig(){
 document.getElementById('cfgModal').addEventListener('click',function(e){if(e.target===this)closeCfg();});
 </script>
 </body>
-</html>
+</html> 
