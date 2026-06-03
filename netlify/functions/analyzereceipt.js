@@ -38,20 +38,29 @@ exports.handler = async (event) => {
             },
             {
               type: 'text',
-              text: `Analiza este recibo o factura colombiana. IMPORTANTE: Extrae los datos del VENDEDOR/PROVEEDOR (quien vende el producto/servicio), NO del cliente que compra.
+              text: `Analiza este recibo o factura colombiana. IMPORTANTE: Extrae los datos del VENDEDOR/PROVEEDOR (quien vende), NO del cliente que compra.
 
 RESTRICCIÓN CRÍTICA:
-- Si el vendedor/proveedor es "CIVELE" o NIT "901661192" o "901661192-1", RECHAZA y devuelve un error.
+- Si el vendedor/proveedor es "CIVELE" o NIT "901661192" o "901661192-1", RECHAZA.
 - CIVELE es el EMPLEADOR/CLIENTE que COMPRA, no es el vendedor.
-- Busca el VERDADERO PROVEEDOR en la factura (el que vende).
+- Busca el VERDADERO PROVEEDOR en la factura.
+
+CAMPOS A EXTRAER:
+- "numero_factura": Número de factura (busca "Factura #", "Invoice", "Factura No.", "N° Factura", en la parte superior del documento)
+- "descripcion": Descripción DETALLADA de lo que se compró. Incluye: qué productos/servicios, cantidades, y el concepto principal de gasto (ej: "Catering para 20 personas - Almuerzo ejecutivo", "Transporte terrestre Bogotá-Cartagena")
 
 Extrae en JSON estricto:
-{"subtotal":numero_sin_puntos_ni_comas,"iva":numero_iva_si_aparece_sino_0,"impoconsumo":numero_impoconsumo_si_aparece_sino_0,"total":numero_total,"fecha":"DD/MM/YYYY","receptor":"nombre del VENDEDOR/PROVEEDOR","nit":"NIT o cédula del VENDEDOR","ciudad":"ciudad","tipo_documento":"Factura electrónica|Recibo de caja|Tiquete|Comprobante|Otro","porcentaje_iva":numero_porcentaje_iva_si_es_visible_sino_null,"error":null}
+{"subtotal":numero_sin_puntos_ni_comas,"iva":numero_iva_si_aparece_sino_0,"impoconsumo":numero_impoconsumo_si_aparece_sino_0,"total":numero_total,"fecha":"DD/MM/YYYY","receptor":"nombre del VENDEDOR/PROVEEDOR","nit":"NIT o cédula del VENDEDOR","ciudad":"ciudad","tipo_documento":"Factura electrónica|Recibo de caja|Tiquete|Comprobante|Otro","numero_factura":"número de factura","descripcion":"descripción detallada de productos/servicios comprados","porcentaje_iva":numero_porcentaje_iva_si_es_visible_sino_null,"error":null}
 
 Si el vendedor es CIVELE (901661192), responde:
 {"error":"El vendedor no puede ser CIVELE (NIT 901661192). Busca el proveedor real en la factura."}
 
-Importante: subtotal+iva+impoconsumo debe ser igual a total. Si no se discrimina IVA, pon iva:0 e impoconsumo:0 y el total en subtotal. SOLO JSON.`
+IMPORTANTE:
+- subtotal+iva+impoconsumo debe ser igual a total
+- Si no se discrimina IVA, pon iva:0 e impoconsumo:0 y el total en subtotal
+- numero_factura no puede estar vacío (busca bien)
+- descripcion debe ser descriptiva y útil (no genérica)
+- SOLO JSON.`
             }
           ]
         }]
