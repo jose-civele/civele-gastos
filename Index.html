@@ -273,16 +273,16 @@ Otro</textarea></div>
 
   <div class="ai-card">
     <div class="ai-head"><div class="ai-dot" id="aiDot"></div><div class="ai-head-txt" id="aiStatus">IA CIVELE analizando imagen...</div></div>
-    <div class="ai-body">
-      <div class="ai-row"><div class="ai-key">Vendedor/Proveedor</div><div class="ai-val shimmer" id="xReceptor">—</div></div>
-      <div class="ai-row"><div class="ai-key">NIT Proveedor</div><div class="ai-val shimmer" id="xNit">—</div></div>
-      <div class="ai-row"><div class="ai-key">Fecha</div><div class="ai-val shimmer" id="xFecha">—</div></div>
-      <div class="ai-row"><div class="ai-key">Descripción</div><div class="ai-val shimmer" id="xDescripcion">—</div></div>
-      <div class="ai-row"><div class="ai-key">Ciudad</div><div class="ai-val shimmer" id="xCiudad">—</div></div>
-      <div class="ai-row"><div class="ai-key">Tipo doc</div><div class="ai-val shimmer" id="xTipo">—</div></div>
-      <div class="ai-row"><div class="ai-key">N° Factura</div><div class="ai-val shimmer" id="xNumFact">—</div></div>
-      <div class="ai-row"><div class="ai-key">IVA detectado</div><div class="ai-val shimmer" id="xIva">—</div></div>
-      <div class="ai-row"><div class="ai-key">Impoconsumo</div><div class="ai-val shimmer" id="xImpo">—</div></div>
+    <div class="ai-body" style="display:flex;flex-direction:column;gap:10px">
+      <div><label style="font-size:10px;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:5px">Vendedor/Proveedor</label><input type="text" id="xReceptor" style="width:100%;border:1px solid var(--border);padding:10px;border-radius:8px;font-size:14px" placeholder="—"></div>
+      <div><label style="font-size:10px;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:5px">NIT Proveedor</label><input type="text" id="xNit" style="width:100%;border:1px solid var(--border);padding:10px;border-radius:8px;font-size:14px" placeholder="—"></div>
+      <div><label style="font-size:10px;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:5px">Fecha</label><input type="text" id="xFecha" style="width:100%;border:1px solid var(--border);padding:10px;border-radius:8px;font-size:14px" placeholder="—"></div>
+      <div><label style="font-size:10px;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:5px">Descripción</label><input type="text" id="xDescripcion" style="width:100%;border:1px solid var(--border);padding:10px;border-radius:8px;font-size:14px" placeholder="—"></div>
+      <div><label style="font-size:10px;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:5px">Ciudad</label><input type="text" id="xCiudad" style="width:100%;border:1px solid var(--border);padding:10px;border-radius:8px;font-size:14px" placeholder="—"></div>
+      <div><label style="font-size:10px;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:5px">Tipo doc</label><input type="text" id="xTipo" style="width:100%;border:1px solid var(--border);padding:10px;border-radius:8px;font-size:14px" placeholder="—"></div>
+      <div><label style="font-size:10px;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:5px">N° Factura</label><input type="text" id="xNumFact" style="width:100%;border:1px solid var(--border);padding:10px;border-radius:8px;font-size:14px" placeholder="—"></div>
+      <div><label style="font-size:10px;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:5px">IVA detectado</label><input type="text" id="xIva" style="width:100%;border:1px solid var(--border);padding:10px;border-radius:8px;font-size:14px" placeholder="—"></div>
+      <div><label style="font-size:10px;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:5px">Impoconsumo</label><input type="text" id="xImpo" style="width:100%;border:1px solid var(--border);padding:10px;border-radius:8px;font-size:14px" placeholder="—"></div>
     </div>
   </div>
 
@@ -465,7 +465,7 @@ function onPhoto(e){
 async function analizarFoto(){
   goTo(2);
   const ids=["xReceptor","xNit","xFecha","xDescripcion","xCiudad","xTipo","xNumFact","xIva","xImpo"];
-  ids.forEach(id=>{const el=document.getElementById(id);el.classList.add("shimmer");el.textContent="—";});
+  ids.forEach(id=>{const el=document.getElementById(id);if(el.tagName==="INPUT"){el.value="";}else{el.classList.add("shimmer");el.textContent="—";}});
   document.getElementById("aiDot").classList.remove("idle");
   document.getElementById("aiStatus").textContent="IA CIVELE analizando imagen...";
   try{
@@ -477,14 +477,14 @@ async function analizarFoto(){
     const d=await resp.json();
     ST.extracted=d;
     const f=v=>(v!=null&&v!=="")?String(v):"No detectado";
-    document.getElementById("xReceptor").textContent=f(d.receptor);
-    document.getElementById("xNit").textContent=f(d.nit);
-    document.getElementById("xFecha").textContent=f(d.fecha);
+    document.getElementById("xReceptor").value=f(d.receptor);
+    document.getElementById("xNit").value=f(d.nit);
+    document.getElementById("xFecha").value=f(d.fecha);
     document.getElementById("xCiudad").textContent=f(d.ciudad);
-    document.getElementById("xTipo").textContent=f(d.tipo_documento);
-    document.getElementById("xIva").textContent=d.iva>0?`$${Number(d.iva).toLocaleString("es-CO")}`+(d.porcentaje_iva?` (${d.porcentaje_iva}%)`:""):"No aplica / no visible";
-    document.getElementById("xImpo").textContent=d.impoconsumo>0?`$${Number(d.impoconsumo).toLocaleString("es-CO")}`:"No aplica";
-    ids.forEach(id=>document.getElementById(id).classList.remove("shimmer"));
+    document.getElementById("xTipo").value=f(d.tipo_documento);
+    document.getElementById("xIva").value=d.iva>0?`$${Number(d.iva).toLocaleString("es-CO")}`+(d.porcentaje_iva?` (${d.porcentaje_iva}%)`:""):"";
+    document.getElementById("xImpo").value=d.impoconsumo>0?`$${Number(d.impoconsumo).toLocaleString("es-CO")}`:"";
+    ids.forEach(id=>{const el=document.getElementById(id);if(el.tagName!=="INPUT"){el.classList.remove("shimmer");}});
     document.getElementById("aiDot").classList.add("idle");
     document.getElementById("aiStatus").textContent="Datos extraídos — revisa y confirma";
     document.getElementById("inpSubtotal").value=d.subtotal||0;

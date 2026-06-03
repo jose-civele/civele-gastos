@@ -24,7 +24,7 @@ exports.handler = async (event) => {
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 400,
+        max_tokens: 500,
         messages: [{
           role: 'user',
           content: [
@@ -38,29 +38,36 @@ exports.handler = async (event) => {
             },
             {
               type: 'text',
-              text: `Analiza este recibo o factura colombiana. IMPORTANTE: Extrae los datos del VENDEDOR/PROVEEDOR (quien vende), NO del cliente que compra.
+              text: `Analiza este recibo o factura colombiana. IMPORTANTE: Extrae los datos del VENDEDOR/PROVEEDOR (quien vende el producto/servicio), NO del cliente que compra.
 
 RESTRICCIÓN CRÍTICA:
-- Si el vendedor/proveedor es "CIVELE" o NIT "901661192" o "901661192-1", RECHAZA.
+- Si el vendedor/proveedor es "CIVELE" o NIT "901661192" o "901661192-1", RECHAZA y devuelve un error.
 - CIVELE es el EMPLEADOR/CLIENTE que COMPRA, no es el vendedor.
-- Busca el VERDADERO PROVEEDOR en la factura.
+- Busca el VERDADERO PROVEEDOR en la factura (el que vende).
 
 CAMPOS A EXTRAER:
-- "numero_factura": Número de factura (busca "Factura #", "Invoice", "Factura No.", "N° Factura", en la parte superior del documento)
-- "descripcion": Descripción DETALLADA de lo que se compró. Incluye: qué productos/servicios, cantidades, y el concepto principal de gasto (ej: "Catering para 20 personas - Almuerzo ejecutivo", "Transporte terrestre Bogotá-Cartagena")
+
+1. "numero_factura": Número de factura (busca "Factura #", "Invoice", "Factura No.", "N° Factura", "Ref.", en la parte superior del documento). Si no encuentras, busca en el pie de página o lado derecho.
+
+2. "descripcion": Descripción DETALLADA de lo que se compró. Incluye:
+   - Qué productos/servicios se adquirieron
+   - Cantidades (si aparecen)
+   - Concepto principal del gasto
+   - Ejemplo: "Catering para 20 personas - Almuerzo ejecutivo" o "Transporte terrestre Bogotá-Cartagena, 4 pasajeros"
+   - Si la factura es compleja, extrae el detalle de lo que aparece en los renglones/items.
 
 Extrae en JSON estricto:
-{"subtotal":numero_sin_puntos_ni_comas,"iva":numero_iva_si_aparece_sino_0,"impoconsumo":numero_impoconsumo_si_aparece_sino_0,"total":numero_total,"fecha":"DD/MM/YYYY","receptor":"nombre del VENDEDOR/PROVEEDOR","nit":"NIT o cédula del VENDEDOR","ciudad":"ciudad","tipo_documento":"Factura electrónica|Recibo de caja|Tiquete|Comprobante|Otro","numero_factura":"número de factura","descripcion":"descripción detallada de productos/servicios comprados","porcentaje_iva":numero_porcentaje_iva_si_es_visible_sino_null,"error":null}
+{"subtotal":numero_sin_puntos_ni_comas,"iva":numero_iva_si_aparece_sino_0,"impoconsumo":numero_impoconsumo_si_aparece_sino_0,"total":numero_total,"fecha":"DD/MM/YYYY","receptor":"nombre del VENDEDOR/PROVEEDOR","nit":"NIT o cédula del VENDEDOR","ciudad":"ciudad","tipo_documento":"Factura electrónica|Recibo de caja|Tiquete|Comprobante|Otro","numero_factura":"número de factura","descripcion":"descripción detallada de productos/servicios","porcentaje_iva":numero_porcentaje_iva_si_es_visible_sino_null,"error":null}
 
 Si el vendedor es CIVELE (901661192), responde:
 {"error":"El vendedor no puede ser CIVELE (NIT 901661192). Busca el proveedor real en la factura."}
 
-IMPORTANTE:
+VALIDACIONES FINALES:
 - subtotal+iva+impoconsumo debe ser igual a total
 - Si no se discrimina IVA, pon iva:0 e impoconsumo:0 y el total en subtotal
-- numero_factura no puede estar vacío (busca bien)
-- descripcion debe ser descriptiva y útil (no genérica)
-- SOLO JSON.`
+- numero_factura NO puede estar vacío (busca con cuidado)
+- descripcion debe ser descriptiva y útil (no genérica como "productos" o "servicios")
+- SOLO RESPONDE JSON.`
             }
           ]
         }]
