@@ -238,7 +238,7 @@ Otro</textarea></div>
   <div class="field"><label>ID del viático</label><input type="text" id="inpViat" placeholder="VIA-2025-001" style="font-family:var(--mono);letter-spacing:.05em;text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"><div class="hint">Lo encuentras en el correo de habilitación de CIVELE.</div></div>
   <div class="field"><label>Proyecto / Centro de costo</label><div class="sel-w"><select id="selProj"><option value="">— Selecciona el proyecto —</option></select></div></div>
   <div style="height:8px"></div>
-  <button class="btn btn-blue" id="btnStart" onclick="iniciar()" disabled>Iniciar registro de gastos →</button>
+  <button class="btn btn-blue" id="btnStart" onclick="goTo('selectorTipo')" disabled>Iniciar registro de gastos →</button>
   <div class="divider">también puedes</div>
   <button class="btn btn-ghost" onclick="verResumen()">📋 Ver mis gastos registrados</button>
   <div class="civele-footer">
@@ -284,6 +284,15 @@ Otro</textarea></div>
       <div><label style="font-size:10px;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:5px">IVA detectado</label><input type="text" id="xIva" style="width:100%;border:1px solid var(--border);padding:10px;border-radius:8px;font-size:14px" placeholder="—"></div>
       <div><label style="font-size:10px;color:var(--muted);text-transform:uppercase;display:block;margin-bottom:5px">Impoconsumo</label><input type="text" id="xImpo" style="width:100%;border:1px solid var(--border);padding:10px;border-radius:8px;font-size:14px" placeholder="—"></div>
     </div>
+      <!-- CAMPO JUSTIFICACIÓN PARA REINTEGRO (oculto inicialmente) -->
+      <div id="camposReintegro" style="display:none;margin-top:20px;border-top:1px solid var(--border);padding-top:15px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--muted);margin-bottom:12px">Justificación del Reintegro</div>
+        <div class="field">
+          <label>Justificación</label>
+          <textarea id="inpJustificacion" placeholder="Explica por qué incurriste en este gasto..."></textarea>
+        </div>
+      </div>
+
   </div>
 
   <!-- DISCRIMINACIÓN DE MONTOS -->
@@ -301,6 +310,15 @@ Otro</textarea></div>
       <label>Impoconsumo ($)</label>
       <input type="number" id="inpImpo" placeholder="0" oninput="calcTotal()">
     </div>
+      <!-- CAMPO JUSTIFICACIÓN PARA REINTEGRO (oculto inicialmente) -->
+      <div id="camposReintegro" style="display:none;margin-top:20px;border-top:1px solid var(--border);padding-top:15px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--muted);margin-bottom:12px">Justificación del Reintegro</div>
+        <div class="field">
+          <label>Justificación</label>
+          <textarea id="inpJustificacion" placeholder="Explica por qué incurriste en este gasto..."></textarea>
+        </div>
+      </div>
+
   </div>
   <div class="iva-summary" id="ivaSummary">
     <div><div class="iva-s-lbl">Subtotal</div><div class="iva-s-val" id="sumSub">$0</div></div>
@@ -319,6 +337,15 @@ Otro</textarea></div>
       <div class="chip" onclick="selChip(this,'Comunicaciones')">📡 Comunicaciones</div>
       <div class="chip" onclick="selChip(this,'Otros')">📋 Otros</div>
     </div>
+      <!-- CAMPO JUSTIFICACIÓN PARA REINTEGRO (oculto inicialmente) -->
+      <div id="camposReintegro" style="display:none;margin-top:20px;border-top:1px solid var(--border);padding-top:15px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--muted);margin-bottom:12px">Justificación del Reintegro</div>
+        <div class="field">
+          <label>Justificación</label>
+          <textarea id="inpJustificacion" placeholder="Explica por qué incurriste en este gasto..."></textarea>
+        </div>
+      </div>
+
   </div>
 
   <div class="field"><label>Observación (opcional)</label><textarea id="inpObs" placeholder="Ej: almuerzo con cliente, taxi al aeropuerto..."></textarea></div>
@@ -409,6 +436,12 @@ let CFG={apiKey:'',sheetId:'',sheetToken:'',
   ['selEmp','inpViat','selProj'].forEach(id=>document.getElementById(id).addEventListener('input',chkStart));
 })();
 
+
+function actualizarCamposSegunTipo(){
+  const esReintegro = ST.tipoGasto === 'reintegro';
+  document.getElementById('camposReintegro').style.display = esReintegro ? 'block' : 'none';
+}
+
 function populateSels(){
   const se=document.getElementById('selEmp');
   se.innerHTML='<option value="">— Selecciona tu nombre —</option>';
@@ -435,6 +468,13 @@ function chkStart(){
   document.getElementById('btnStart').disabled=
     !(document.getElementById('selEmp').value&&document.getElementById('inpViat').value.trim()&&document.getElementById('selProj').value);
 }
+function seleccionarTipo(tipo){
+  ST.tipoGasto=tipo;
+  ST.gastos=[];
+  setTimeout(actualizarCamposSegunTipo, 100);
+  goTo(1);
+}
+
 function iniciar(){
   ST.emp=document.getElementById('selEmp').value;
   ST.viat=document.getElementById('inpViat').value.trim();
