@@ -529,7 +529,7 @@ async function analizarFoto(){
     const resp=await fetch("/.netlify/functions/analyzereceipt",{
       method:"POST",
       headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({photoB64:ST.photoB64})
+      body:JSON.stringify({photoB64:ST.photoB64,tipoGasto:ST.tipoGasto})
     });
     const d=await resp.json();
     ST.extracted=d;
