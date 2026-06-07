@@ -225,7 +225,24 @@ Otro</textarea></div>
 </div>
 
 <!-- S0: IDENTIFICACIÓN -->
-<div class="screen active" id="s0"><div class="container">
+<!-- PANTALLA: SELECTOR DE TIPO DE GASTO -->
+<div class="screen active" id="selectorTipo"><div class="container">
+  <div style="text-align:center;margin:80px 0">
+    <div class="lbl">Paso 1</div>
+    <div class="title">¿Qué deseas registrar?</div>
+    <div class="sub">Elige el tipo de gasto a legalizar.</div>
+    <div style="margin-top:50px;display:flex;flex-direction:column;gap:15px">
+      <button class="btn btn-blue" onclick="seleccionarTipo('factura')" style="justify-content:center;height:60px;font-size:16px">
+        📄 Gasto de Factura Comercial
+      </button>
+      <button class="btn btn-orange" onclick="seleccionarTipo('reintegro')" style="justify-content:center;height:60px;font-size:16px">
+        💰 Gasto/Reintegro Personal
+      </button>
+    </div>
+  </div>
+</div></div>
+
+<div class="screen" id="s0"><div class="container">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:26px">
     <div>
       <span class="lbl">CIVELE · Ingeniería Especializada</span>
