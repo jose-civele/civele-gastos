@@ -30,14 +30,16 @@ exports.handler = async (event) => {
 1. "receptor" (VENDEDOR): En el encabezado de la factura, lado izquierdo o derecho. Ej: "Restaurante La Provincia", "Lubricantes XYZ S.A."
 2. "nit": Junto al nombre del vendedor, formato XXX.XXX.XXX-X o XXXXXXXXX. Ej: "900.456.789-1"
 3. "fecha": Usualmente arriba a la derecha. Formato DD/MM/YYYY o similar. Busca palabras: "Fecha", "Date", "Emisión"
-4. "numero_factura": BÚSQUEDA EXHAUSTIVA EN ESTE ORDEN:
-   a) PARTE SUPERIOR DERECHA: Busca "Factura #", "Invoice #", "Invoice No.", "No. Factura"
-   b) PARTE SUPERIOR CENTRAL: Busca "Comprobante", "Documento #", "Ref #"
-   c) ENCABEZADO IZQUIERDO: Busca "Factura:", "Doc:", "Número:", "N°"
-   d) LADO DERECHO (columna): Número sin prefijo pero cerca de "Fecha"
-   e) DENTRO DEL TEXTO: Si dice "Factura #123" o "Invoice ABC-2024-001" extrae el número
-   FORMATOS COMUNES: 123456, ABC-123, 2024-001, FAC-100, INV-2024-00001
-   ⚠️ SI NO ENCUENTRAS CLARAMENTE: Devuelve error pidiendo número de factura más legible
+4. "numero_factura": BÚSQUEDA EXHAUSTIVA - PASO A PASO:
+   PASO 1 - LOCALIZAR INDICADORES: Busca los textos "Factura Electrónica de Venta" o "Factura de Venta Electrónica"
+   PASO 2 - BUSCAR NÚMERO CERCANO A INDICADORES EN ESTE ORDEN:
+      a) INMEDIATAMENTE DESPUÉS del texto "Factura Electrónica de Venta": Ej: "Factura Electrónica de Venta #123456"
+      b) PARTE SUPERIOR DERECHA: Busca "Factura #", "Invoice #", "No.", "Ref #"
+      c) LÍNEA DEBAJO de "Factura Electrónica": Busca número solo
+      d) COLUMNA DERECHA junto a "Fecha", "Número", "Doc"
+      e) ENCABEZADO: Busca "Factura:", "No. Factura:", "Número:"
+   FORMATOS COMUNES: 123456, FAC-2024-001, INV-100, FACT-00001
+   ⚠️ SI NO ENCUENTRAS: Devuelve error pidiendo número más legible - Busca donde dice "Factura Electrónica de Venta"
 5. "descripcion": En la sección de detalle/items. Incluye QUÉ se compró, CUÁNTO (cantidad) y PARA QUÉ.
    Ejemplos CORRECTOS: "Catering 20 personas - Almuerzo ejecutivo", "Gasolina 40 litros - Exxon"
    Ejemplos INCORRECTOS: "Servicios", "Productos", "Mercancía"
@@ -195,7 +197,7 @@ SOLO RESPONDE JSON, NADA MÁS.`;
     }
 
     if (!extracted.numero_factura || extracted.numero_factura.trim() === '') {
-      return { statusCode: 400, body: JSON.stringify({ error: 'No se encontró el NÚMERO DE FACTURA. Verifica que la foto muestre claramente el número (busca en esquina superior derecha o junto a "Factura #", "Invoice", "Ref").' }) };
+      return { statusCode: 400, body: JSON.stringify({ error: 'No se encontró el NÚMERO DE FACTURA. Busca donde dice "Factura Electrónica de Venta" o "Factura de Venta Electrónica" - el número debe estar cerca de estos textos, generalmente a la derecha o en la línea siguiente.' }) };
     }
 
     if (!extracted.descripcion || extracted.descripcion.trim().length < 10) {
