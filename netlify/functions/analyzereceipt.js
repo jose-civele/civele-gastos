@@ -30,7 +30,14 @@ exports.handler = async (event) => {
 1. "receptor" (VENDEDOR): En el encabezado de la factura, lado izquierdo o derecho. Ej: "Restaurante La Provincia", "Lubricantes XYZ S.A."
 2. "nit": Junto al nombre del vendedor, formato XXX.XXX.XXX-X o XXXXXXXXX. Ej: "900.456.789-1"
 3. "fecha": Usualmente arriba a la derecha. Formato DD/MM/YYYY o similar. Busca palabras: "Fecha", "Date", "Emisión"
-4. "numero_factura": En la parte superior. Busca: "Factura #", "Invoice", "No.", "Ref.", "Comprobante #"
+4. "numero_factura": BÚSQUEDA EXHAUSTIVA EN ESTE ORDEN:
+   a) PARTE SUPERIOR DERECHA: Busca "Factura #", "Invoice #", "Invoice No.", "No. Factura"
+   b) PARTE SUPERIOR CENTRAL: Busca "Comprobante", "Documento #", "Ref #"
+   c) ENCABEZADO IZQUIERDO: Busca "Factura:", "Doc:", "Número:", "N°"
+   d) LADO DERECHO (columna): Número sin prefijo pero cerca de "Fecha"
+   e) DENTRO DEL TEXTO: Si dice "Factura #123" o "Invoice ABC-2024-001" extrae el número
+   FORMATOS COMUNES: 123456, ABC-123, 2024-001, FAC-100, INV-2024-00001
+   ⚠️ SI NO ENCUENTRAS CLARAMENTE: Devuelve error pidiendo número de factura más legible
 5. "descripcion": En la sección de detalle/items. Incluye QUÉ se compró, CUÁNTO (cantidad) y PARA QUÉ.
    Ejemplos CORRECTOS: "Catering 20 personas - Almuerzo ejecutivo", "Gasolina 40 litros - Exxon"
    Ejemplos INCORRECTOS: "Servicios", "Productos", "Mercancía"
@@ -57,10 +64,11 @@ EXTRAE EN JSON ESTRICTO (NO agregues texto extra):
 VALIDACIONES ESTRICTAS:
 ✓ subtotal + iva + impoconsumo DEBE ser igual a total (tolerancia: ±1)
 ✓ receptor NO puede estar vacío ni ser genérico
-✓ numero_factura NO puede estar vacío
+✓ numero_factura NO PUEDE ESTAR VACÍO - ES OBLIGATORIO. Si no lo encuentras claramente, devuelve error
+✓ numero_factura DEBE ser alfanumérico (números y letras): 123456, FAC-001, INV-2024-001, etc.
 ✓ descripcion DEBE ser específica, NOT genérica (mínimo 10 caracteres descriptivos)
 ✓ fecha DEBE estar en formato DD/MM/YYYY
-✓ Si NO encuentras un campo, devuelve error indicando cuál falta
+✓ Si NO encuentras un campo OBLIGATORIO, devuelve error indicando cuál falta
 
 ERROR SI FALTA INFORMACIÓN CRÍTICA:
 {"error":"Falta información crítica: [especifica cuáles campos faltan]. Por favor, toma una foto más clara mostrando estos datos."}
@@ -184,6 +192,10 @@ SOLO RESPONDE JSON, NADA MÁS.`;
     // Validaciones finales del lado del servidor
     if (!extracted.receptor || extracted.receptor.trim() === '') {
       return { statusCode: 400, body: JSON.stringify({ error: 'Falta el nombre del vendedor/proveedor' }) };
+    }
+
+    if (!extracted.numero_factura || extracted.numero_factura.trim() === '') {
+      return { statusCode: 400, body: JSON.stringify({ error: 'No se encontró el NÚMERO DE FACTURA. Verifica que la foto muestre claramente el número (busca en esquina superior derecha o junto a "Factura #", "Invoice", "Ref").' }) };
     }
 
     if (!extracted.descripcion || extracted.descripcion.trim().length < 10) {
