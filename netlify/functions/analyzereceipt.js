@@ -15,51 +15,105 @@ exports.handler = async (event) => {
       return { statusCode: 500, body: JSON.stringify({ error: 'API key not configured' }) };
     }
 
-    // PROMPTS DIFERENTES SEGÚN TIPO DE GASTO
+    // PROMPTS MEJORADOS CON EJEMPLOS Y VALIDACIONES MÁS ESTRICTAS
     let promptText = '';
 
     if (tipoGasto === 'factura') {
-      promptText = `Analiza esta factura comercial. IMPORTANTE: Extrae los datos del VENDEDOR/PROVEEDOR (quien vende el producto/servicio), NO del cliente que compra.
+      promptText = `ANALIZA ESTA FACTURA COMERCIAL CON MÁXIMA PRECISIÓN.
 
-RESTRICCIÓN CRÍTICA:
-- Si el vendedor/proveedor es "CIVELE" o NIT "901661192" o "901661192-1", RECHAZA y devuelve un error.
-- CIVELE es el EMPLEADOR/CLIENTE que COMPRA, no es el vendedor.
+⚠️ RESTRICCIÓN CRÍTICA:
+- Si el VENDEDOR es "CIVELE" o NIT "901661192" o "901661192-1", RECHAZA.
+- CIVELE es el CLIENTE que COMPRA, NO el vendedor.
 - Busca el VERDADERO PROVEEDOR en la factura.
 
-CAMPOS A EXTRAER:
-1. "numero_factura": Número de factura (busca en parte superior, pie de página o lado derecho)
-2. "descripcion": Descripción DETALLADA de lo que se compró (productos/servicios, cantidades, concepto)
+📍 DÓNDE BUSCAR CADA CAMPO:
+1. "receptor" (VENDEDOR): En el encabezado de la factura, lado izquierdo o derecho. Ej: "Restaurante La Provincia", "Lubricantes XYZ S.A."
+2. "nit": Junto al nombre del vendedor, formato XXX.XXX.XXX-X o XXXXXXXXX. Ej: "900.456.789-1"
+3. "fecha": Usualmente arriba a la derecha. Formato DD/MM/YYYY o similar. Busca palabras: "Fecha", "Date", "Emisión"
+4. "numero_factura": En la parte superior. Busca: "Factura #", "Invoice", "No.", "Ref.", "Comprobante #"
+5. "descripcion": En la sección de detalle/items. Incluye QUÉ se compró, CUÁNTO (cantidad) y PARA QUÉ.
+   Ejemplos CORRECTOS: "Catering 20 personas - Almuerzo ejecutivo", "Gasolina 40 litros - Exxon"
+   Ejemplos INCORRECTOS: "Servicios", "Productos", "Mercancía"
+6. "ciudad": Generalmente en el encabezado del vendedor. Ej: "Bogotá", "Medellín"
+7. "subtotal", "iva", "total": En la sección de totales/resumen, usualmente al final.
 
-Extrae en JSON estricto:
-{"subtotal":numero_sin_puntos_ni_comas,"iva":numero_iva_si_aparece_sino_0,"impoconsumo":numero_impoconsumo_si_aparece_sino_0,"total":numero_total,"fecha":"DD/MM/YYYY","receptor":"nombre del VENDEDOR/PROVEEDOR","nit":"NIT o cédula del VENDEDOR","ciudad":"ciudad","tipo_documento":"Factura electrónica|Recibo de caja|Tiquete|Comprobante|Otro","numero_factura":"número de factura","descripcion":"descripción detallada de productos/servicios","porcentaje_iva":numero_porcentaje_iva_si_es_visible_sino_null,"error":null}
+EXTRAE EN JSON ESTRICTO (NO agregues texto extra):
+{
+  "subtotal": número_sin_puntos_ni_comas,
+  "iva": número_iva_o_0,
+  "impoconsumo": número_impoconsumo_o_0,
+  "total": número_total,
+  "fecha": "DD/MM/YYYY",
+  "receptor": "nombre EXACTO del vendedor",
+  "nit": "NIT exacto del vendedor",
+  "ciudad": "ciudad",
+  "tipo_documento": "Factura electrónica|Recibo de caja|Tiquete|Comprobante|Otro",
+  "numero_factura": "número exacto de factura",
+  "descripcion": "descripción detallada: QUÉ + CANTIDAD + PARA QUÉ",
+  "porcentaje_iva": número_porcentaje_o_null,
+  "error": null
+}
 
-Si el vendedor es CIVELE (901661192), responde:
-{"error":"El vendedor no puede ser CIVELE (NIT 901661192). Busca el proveedor real en la factura."}
+VALIDACIONES ESTRICTAS:
+✓ subtotal + iva + impoconsumo DEBE ser igual a total (tolerancia: ±1)
+✓ receptor NO puede estar vacío ni ser genérico
+✓ numero_factura NO puede estar vacío
+✓ descripcion DEBE ser específica, NOT genérica (mínimo 10 caracteres descriptivos)
+✓ fecha DEBE estar en formato DD/MM/YYYY
+✓ Si NO encuentras un campo, devuelve error indicando cuál falta
 
-VALIDACIONES:
-- subtotal+iva+impoconsumo = total
-- numero_factura NO puede estar vacío
-- descripcion debe ser descriptiva (no genérica)
-- SOLO JSON.`;
+ERROR SI FALTA INFORMACIÓN CRÍTICA:
+{"error":"Falta información crítica: [especifica cuáles campos faltan]. Por favor, toma una foto más clara mostrando estos datos."}
+
+SOLO RESPONDE JSON, NADA MÁS.`;
 
     } else if (tipoGasto === 'reintegro') {
-      promptText = `Analiza este recibo de gasto PERSONAL que el empleado pagó de su bolsillo y desea reintegrar.
+      promptText = `ANALIZA ESTE RECIBO DE GASTO PERSONAL CON MÁXIMA PRECISIÓN.
 
-Extrae los datos del PROVEEDOR/VENDEDOR (quien recibió el dinero del empleado).
+El empleado pagó esto de su bolsillo y quiere recuperar el dinero.
 
-CAMPOS A EXTRAER:
-1. "numero_factura": Número de factura/recibo (si aparece)
-2. "descripcion": Descripción DETALLADA de lo que se compró
+📍 DÓNDE BUSCAR CADA CAMPO:
+1. "receptor" (VENDEDOR): ¿Dónde pagó? Ej: "Estación de servicio Petrobras", "Farmacia Punto Salud", "Taxi Amarillo"
+2. "nit": Número de identificación del vendedor (si aparece)
+3. "fecha": Cuándo compró. Busca: "Fecha", "Date", "Hora"
+4. "numero_factura": Número del recibo/comprobante (si aparece)
+5. "total": Cuánto pagó en total
+6. "descripcion": QUÉ COMPRÓ EXACTAMENTE. Incluye:
+   - PRODUCTO/SERVICIO específico
+   - CANTIDAD (si aplica)
+   - PARA QUÉ (propósito del gasto)
+   Ejemplos CORRECTOS: "Gasolina 30 litros - Combustible vehículo proyecto", "Almuerzo 2 personas - Viaje a cliente"
+   Ejemplos INCORRECTOS: "Gastos", "Comida", "Combustible"
+7. "ciudad": Dónde compró (si aparece)
 
-Extrae en JSON estricto:
-{"subtotal":numero_sin_puntos_ni_comas,"iva":numero_iva_si_aparece_sino_0,"impoconsumo":numero_impoconsumo_si_aparece_sino_0,"total":numero_total,"fecha":"DD/MM/YYYY","receptor":"nombre del PROVEEDOR/VENDEDOR","nit":"NIT o cédula del PROVEEDOR","ciudad":"ciudad","tipo_documento":"Factura electrónica|Recibo de caja|Tiquete|Comprobante|Otro","numero_factura":"número de factura/recibo","descripcion":"descripción detallada de lo que se compró","porcentaje_iva":numero_porcentaje_iva_si_es_visible_sino_null,"error":null}
+EXTRAE EN JSON ESTRICTO:
+{
+  "subtotal": número_sin_puntos_ni_comas,
+  "iva": número_iva_o_0,
+  "impoconsumo": número_impoconsumo_o_0,
+  "total": número_total,
+  "fecha": "DD/MM/YYYY",
+  "receptor": "nombre del vendedor",
+  "nit": "NIT si aparece, sino vacío",
+  "ciudad": "ciudad si aparece, sino vacío",
+  "tipo_documento": "Recibo|Tiquete|Factura|Comprobante|Otro",
+  "numero_factura": "número si aparece",
+  "descripcion": "QUÉ compró + CANTIDAD + PARA QUÉ",
+  "porcentaje_iva": número_porcentaje_o_null,
+  "error": null
+}
 
-VALIDACIONES:
-- subtotal+iva+impoconsumo = total
-- Si no aparece IVA, pon iva:0 e impoconsumo:0
-- receptor NO puede estar vacío
-- descripcion debe ser descriptiva
-- SOLO JSON.`;
+VALIDACIONES ESTRICTAS:
+✓ total DEBE ser > 0
+✓ receptor NO puede estar vacío
+✓ descripcion DEBE ser específica y útil (mínimo 15 caracteres descriptivos)
+✓ Si hay subtotal e iva: subtotal + iva DEBE ≈ total
+✓ Fecha en formato DD/MM/YYYY
+
+ERROR SI INFORMACIÓN CRÍTICA FALTA:
+{"error":"Falta información: [especifica]. El recibo debe mostrar: qué se compró y cuánto se pagó."}
+
+SOLO RESPONDE JSON, NADA MÁS.`;
     }
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -71,7 +125,7 @@ VALIDACIONES:
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 500,
+        max_tokens: 600,
         messages: [{
           role: 'user',
           content: [
@@ -125,6 +179,19 @@ VALIDACIONES:
           })
         };
       }
+    }
+
+    // Validaciones finales del lado del servidor
+    if (!extracted.receptor || extracted.receptor.trim() === '') {
+      return { statusCode: 400, body: JSON.stringify({ error: 'Falta el nombre del vendedor/proveedor' }) };
+    }
+
+    if (!extracted.descripcion || extracted.descripcion.trim().length < 10) {
+      return { statusCode: 400, body: JSON.stringify({ error: 'La descripción debe ser más detallada. Incluye: QUÉ se compró, CANTIDAD y PARA QUÉ.' }) };
+    }
+
+    if (!extracted.total || extracted.total <= 0) {
+      return { statusCode: 400, body: JSON.stringify({ error: 'No se encontró el monto total válido' }) };
     }
 
     return {
