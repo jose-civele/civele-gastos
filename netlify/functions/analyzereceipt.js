@@ -197,7 +197,7 @@ SOLO RESPONDE JSON, NADA MÁS.`;
     }
 
     if (!extracted.numero_factura || extracted.numero_factura.trim() === '') {
-      return { statusCode: 400, body: JSON.stringify({ error: 'No se encontró el NÚMERO DE FACTURA. Busca donde dice "Factura Electrónica de Venta" o "Factura de Venta Electrónica" - el número debe estar cerca de estos textos, generalmente a la derecha o en la línea siguiente.' }) };
+      return { statusCode: 400, body: JSON.stringify({ error: 'No se encontró el NÚMERO DE FACTURA. Busca donde dice "FACTURA ELECTRONICA DE VENTA" o "FACTURA DE VENTA ELECTRONICA" o "Factura Electrónica de Venta" o "Factura de Venta Electrónica" - el número debe estar cerca de estos textos, generalmente a la derecha, izquierda, centro superior, centro inferior o en la línea siguiente.' }) };
     }
 
     if (!extracted.descripcion || extracted.descripcion.trim().length < 10) {
