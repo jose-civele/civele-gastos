@@ -2,11 +2,11 @@
   "rewrites": [
     {
       "source": "/",
-      "destination": "/Index.html"
+      "destination": "/index.html"
     },
     {
       "source": "/:path*",
-      "destination": "/Index.html"
+      "destination": "/index.html"
     }
   ]
 }
