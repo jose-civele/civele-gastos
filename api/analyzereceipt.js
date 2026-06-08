@@ -1,18 +1,18 @@
-exports.handler = async (event) => {
-  if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, body: 'Method not allowed' };
+export default async (req, res) => {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
-    const { photoB64, tipoGasto } = JSON.parse(event.body);
+    const { photoB64, tipoGasto } = req.body;
 
     if (!photoB64) {
-      return { statusCode: 400, body: JSON.stringify({ error: 'No image provided' }) };
+      return res.status(400).json({ error: 'No image provided' });
     }
 
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
-      return { statusCode: 500, body: JSON.stringify({ error: 'API key not configured' }) };
+      return res.status(500).json({ error: 'API key not configured' });
     }
 
     // PROMPTS MEJORADOS CON EJEMPLOS Y VALIDACIONES MÁS ESTRICTAS
@@ -159,7 +159,7 @@ SOLO RESPONDE JSON, NADA MÁS.`;
     if (!response.ok) {
       const error = await response.text();
       console.error('Anthropic API error:', error);
-      return { statusCode: response.status, body: JSON.stringify({ error: 'API error' }) };
+      return res.status(response.status).json({ error: 'API error' });
     }
 
     const data = await response.json();
@@ -168,7 +168,7 @@ SOLO RESPONDE JSON, NADA MÁS.`;
 
     // Validación: Rechazar si es error
     if (extracted.error) {
-      return { statusCode: 400, body: JSON.stringify(extracted) };
+      return res.status(400).json(extracted);
     }
 
     // SOLO PARA FACTURA: Validar que no sea CIVELE
@@ -180,41 +180,35 @@ SOLO RESPONDE JSON, NADA MÁS.`;
       );
 
       if (isCivele) {
-        return {
-          statusCode: 400,
-          body: JSON.stringify({
-            error: 'El vendedor no puede ser CIVELE. Busca el proveedor real en la factura.',
-            receptor: extracted.receptor,
-            nit: extracted.nit
-          })
-        };
+        return res.status(400).json({
+          error: 'El vendedor no puede ser CIVELE. Busca el proveedor real en la factura.',
+          receptor: extracted.receptor,
+          nit: extracted.nit
+        });
       }
     }
 
     // Validaciones finales del lado del servidor
     if (!extracted.receptor || extracted.receptor.trim() === '') {
-      return { statusCode: 400, body: JSON.stringify({ error: 'Falta el nombre del vendedor/proveedor' }) };
+      return res.status(400).json({ error: 'Falta el nombre del vendedor/proveedor' });
     }
 
     if (!extracted.numero_factura || extracted.numero_factura.trim() === '') {
-      return { statusCode: 400, body: JSON.stringify({ error: 'No se encontró el NÚMERO DE FACTURA. Busca donde dice "FACTURA ELECTRONICA DE VENTA" o "FACTURA DE VENTA ELECTRONICA" o "Factura Electrónica de Venta" o "Factura de Venta Electrónica" - el número debe estar cerca de estos textos, generalmente a la derecha, izquierda, centro superior, centro inferior o en la línea siguiente.' }) };
+      return res.status(400).json({ error: 'No se encontró el NÚMERO DE FACTURA. Busca donde dice "FACTURA ELECTRONICA DE VENTA" o "FACTURA DE VENTA ELECTRONICA" o "Factura Electrónica de Venta" o "Factura de Venta Electrónica" - el número debe estar cerca de estos textos, generalmente a la derecha, izquierda, centro superior, centro inferior o en la línea siguiente.' });
     }
 
     if (!extracted.descripcion || extracted.descripcion.trim().length < 10) {
-      return { statusCode: 400, body: JSON.stringify({ error: 'La descripción debe ser más detallada. Incluye: QUÉ se compró, CANTIDAD y PARA QUÉ.' }) };
+      return res.status(400).json({ error: 'La descripción debe ser más detallada. Incluye: QUÉ se compró, CANTIDAD y PARA QUÉ.' });
     }
 
     if (!extracted.total || extracted.total <= 0) {
-      return { statusCode: 400, body: JSON.stringify({ error: 'No se encontró el monto total válido' }) };
+      return res.status(400).json({ error: 'No se encontró el monto total válido' });
     }
 
-    return {
-      statusCode: 200,
-      body: JSON.stringify(extracted)
-    };
+    return res.status(200).json(extracted);
 
   } catch (error) {
     console.error('Error:', error);
-    return { statusCode: 500, body: JSON.stringify({ error: error.message }) };
+    return res.status(500).json({ error: error.message });
   }
 };
