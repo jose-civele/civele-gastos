@@ -526,7 +526,7 @@ async function analizarFoto(){
   document.getElementById("aiDot").classList.remove("idle");
   document.getElementById("aiStatus").textContent="IA CIVELE analizando imagen...";
   try{
-    const resp=await fetch("/.netlify/functions/analyzereceipt",{
+    const resp=await fetch("/api/analyzereceipt",{
       method:"POST",
       headers:{"Content-Type":"application/json"},
       body:JSON.stringify({photoB64:ST.photoB64,tipoGasto:ST.tipoGasto})
