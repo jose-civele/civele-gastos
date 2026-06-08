@@ -498,12 +498,35 @@ function iniciar(){
   ST.emp=document.getElementById('selEmp').value;
   ST.viat=document.getElementById('inpViat').value.trim();
   ST.proj=document.getElementById('selProj').value;
+
+  // Validación según tipo de gasto
+  if(ST.tipoGasto==='factura'){
+    // Factura: requiere nombre, viático y proyecto
+    if(!ST.emp||!ST.viat||!ST.proj){
+      alert('Para Factura Comercial: completa Nombre, ID del Viático y Proyecto.');
+      return;
+    }
+  } else if(ST.tipoGasto==='reintegro'){
+    // Reintegro: requiere nombre y proyecto, viático opcional
+    if(!ST.emp||!ST.proj){
+      alert('Para Reintegro Personal: completa Nombre y Proyecto.');
+      return;
+    }
+  }
+
   ST.gastos=[];goTo(1);
 }
 function verResumen(){
   ST.emp=document.getElementById('selEmp').value;
   ST.viat=document.getElementById('inpViat').value.trim();
   ST.proj=document.getElementById('selProj').value;
+
+  // Validación: requiere al menos nombre para ver resumen
+  if(!ST.emp){
+    alert('Selecciona tu nombre para ver tus gastos registrados.');
+    return;
+  }
+
   renderS4();goTo(4);
 }
 
