@@ -790,6 +790,38 @@ function cambiarTipo(){
   ST.tipoGasto='';
   goTo('selectorTipo');
 }
+
+function showLoad(txt,sub){
+  document.getElementById('loadTxt').textContent=txt||'Procesando...';
+  document.getElementById('loadSub').textContent=sub||'';
+  document.getElementById('loadBg').classList.add('open');
+}
+function hideLoad(){
+  document.getElementById('loadBg').classList.remove('open');
+}
+function openCfg(){
+  document.getElementById('cfgApi').value=CFG.apiKey||'';
+  document.getElementById('cfgSheet').value=CFG.sheetId||'';
+  document.getElementById('cfgToken').value=CFG.sheetToken||'';
+  document.getElementById('cfgEmps').value=CFG.emps.join('\n');
+  document.getElementById('cfgProjs').value=CFG.projs.join('\n');
+  document.getElementById('cfgModal').classList.add('open');
+}
+function closeCfg(){
+  document.getElementById('cfgModal').classList.remove('open');
+}
+function saveConfig(){
+  CFG.apiKey=document.getElementById('cfgApi').value.trim();
+  CFG.sheetId=document.getElementById('cfgSheet').value.trim();
+  CFG.sheetToken=document.getElementById('cfgToken').value.trim();
+  const empsRaw=document.getElementById('cfgEmps').value.trim();
+  const projsRaw=document.getElementById('cfgProjs').value.trim();
+  CFG.emps=empsRaw.split('\n').map(s=>s.trim()).filter(Boolean);
+  CFG.projs=projsRaw.split('\n').map(s=>s.trim()).filter(Boolean);
+  try{localStorage.setItem('civele_cfg',JSON.stringify(CFG));}catch(e){}
+  populateSels();closeCfg();
+}
+
 </script>
 </body>
 </html>
