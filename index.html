@@ -531,15 +531,17 @@ function irASelectorTipo(){
   ST.viat=document.getElementById('inpViat').value.trim();
   ST.proj=document.getElementById('selProj').value;
   if(!ST.emp||!ST.proj){alert('Selecciona tu nombre y proyecto para continuar.');return;}
+  loadGastosLocal(); // cargar historial del empleado
   goTo('selectorTipo');
 }
 function seleccionarTipo(tipo){
   ST.tipoGasto=tipo;
-  ST.gastos=[];
   if(tipo==='factura'&&!ST.viat){
     alert('Para Factura Comercial debes ingresar el ID del Viático.\nVuelve al inicio y completa ese campo.');
     goTo(0);return;
   }
+  // Cargar historial completo del empleado sin borrar lo existente
+  loadGastosLocal();
   setTimeout(actualizarCamposSegunTipo,100);
   goTo(1);
 }
@@ -661,7 +663,9 @@ async function pushToSheets(g){
 }
 
 function renderS3(g){
-  const tot=ST.gastos.reduce((s,x)=>s+x.total,0);
+  const sesion=ST.gastos.filter(x=>x.tipoGasto===ST.tipoGasto&&(ST.tipoGasto!=='factura'||x.viat===ST.viat));
+  const tot=sesion.reduce((s,x)=>s+x.total,0);
+  const cnt=sesion.length;
   document.getElementById('s3Sub').textContent=`"${g.concepto}" registrado correctamente.`;
   document.getElementById('s3Card').innerHTML=cardHtml(g);
   document.getElementById('s3Total').textContent='$'+tot.toLocaleString('es-CO');
@@ -687,9 +691,10 @@ ${taxRow}
 function icoConc(c){return({'Transporte terrestre':'🚌','Transporte aéreo':'✈️','Alimentación':'🍽️','Hospedaje':'🏨','Peajes / parqueadero':'🛣️','Materiales':'📦','Comunicaciones':'📡','Otros':'📋'}[c]||'📋');}
 
 async function cerrarViatico(){
-  if(!ST.gastos.length){alert('No hay gastos para cerrar.');return;}
+  const gastosSesion=ST.gastos.filter(g=>g.tipoGasto===ST.tipoGasto&&(ST.tipoGasto!=='factura'||g.viat===ST.viat));
+  if(!gastosSesion.length){alert('No hay gastos de esta sesión para finalizar.');return;}
   showLoad('Cerrando comisión...','Actualizando estado en CIVELE');
-  const tot=ST.gastos.reduce((s,g)=>s+g.total,0);
+  const tot=gastosSesion.reduce((s,g)=>s+g.total,0);
   try{
     if(CFG.sheetToken&&CFG.sheetId)await updateEstado('Pendiente',tot);
     else await new Promise(r=>setTimeout(r,1100));
@@ -747,7 +752,7 @@ function nuevoGasto(){
 }
 
 function reset(){
-  ST.emp='';ST.viat='';ST.proj='';ST.gastos=[];ST.tipoGasto='';
+  ST.gastos=[];ST.emp='';ST.viat='';ST.proj='';ST.tipoGasto='';
   document.getElementById('selEmp').value='';
   document.getElementById('inpViat').value='';
   document.getElementById('selProj').value='';
@@ -807,7 +812,7 @@ function saveConfig(){
 // =====================================================================
 // PERSISTENCIA LOCAL (localStorage)
 // =====================================================================
-function lsKey(){return 'civele_'+ST.emp+'_'+(ST.viat||'rein');}
+function lsKey(){return 'civele_gastos_'+ST.emp;}
 
 function saveGastosLocal(){
   try{localStorage.setItem(lsKey(),JSON.stringify(ST.gastos));}catch(e){}
