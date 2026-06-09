@@ -226,12 +226,13 @@ Otro</textarea></div>
 
 <!-- S0: IDENTIFICACIÓN -->
 <!-- PANTALLA: SELECTOR DE TIPO DE GASTO -->
-<div class="screen active" id="selectorTipo"><div class="container">
+<div class="screen" id="selectorTipo"><div class="container">
   <div style="text-align:center;margin:80px 0">
     <div class="lbl">Paso 1</div>
     <div class="title">¿Qué deseas registrar?</div>
     <div class="sub">Elige el tipo de gasto a legalizar.</div>
     <div style="margin-top:50px;display:flex;flex-direction:column;gap:15px">
+      <button class="btn btn-ghost" onclick="goTo(0)" style="margin-bottom:20px">← Volver</button>
       <button class="btn btn-blue" onclick="seleccionarTipo('factura')" style="justify-content:center;height:60px;font-size:16px">
         📄 Gasto de Factura Comercial
       </button>
@@ -242,7 +243,7 @@ Otro</textarea></div>
   </div>
 </div></div>
 
-<div class="screen" id="s0"><div class="container">
+<div class="screen active" id="s0"><div class="container">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:26px">
     <div>
       <span class="lbl">CIVELE · Ingeniería Especializada</span>
@@ -255,7 +256,7 @@ Otro</textarea></div>
   <div class="field"><label>ID del viático</label><input type="text" id="inpViat" placeholder="VIA-2025-001" style="font-family:var(--mono);letter-spacing:.05em;text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"><div class="hint">Lo encuentras en el correo de habilitación de CIVELE.</div></div>
   <div class="field"><label>Proyecto / Centro de costo</label><div class="sel-w"><select id="selProj"><option value="">— Selecciona el proyecto —</option></select></div></div>
   <div style="height:8px"></div>
-  <button class="btn btn-blue" id="btnStart" onclick="goTo('selectorTipo')" disabled>Iniciar registro de gastos →</button>
+  <button class="btn btn-blue" id="btnStart" onclick="irASelectorTipo()" disabled>Iniciar registro de gastos →</button>
   <div class="divider">también puedes</div>
   <button class="btn btn-ghost" onclick="verResumen()">📋 Ver mis gastos registrados</button>
   <div class="civele-footer">
@@ -279,7 +280,7 @@ Otro</textarea></div>
   <div style="height:16px"></div>
   <div class="notice info"><span class="n-ico">💡</span><span>Asegúrate que el monto, fecha, IVA y nombre del establecimiento sean legibles. Sin sombras ni reflejos.</span></div>
   <button class="btn btn-blue" id="btnAnalizar" onclick="analizarFoto()" disabled>Analizar con IA →</button>
-  <button class="btn btn-ghost" onclick="goTo(0)" style="margin-top:10px">← Volver</button>
+  <button class="btn btn-ghost" onclick="irASelectorTipo()" style="margin-top:10px">← Volver</button>
 </div></div>
 
 <!-- S2: CONFIRMAR DATOS -->
@@ -473,24 +474,39 @@ function populateSels(){
 const TITLES=['Identificación','Foto del recibo','Confirmar datos','Guardado','Mis gastos','Finalizado'];
 const STEPS=['','1/3','2/3','3/3','',''];
 const PROGS=[4,30,62,88,50,100];
+TITLES['selectorTipo']='Tipo de gasto';STEPS['selectorTipo']='';PROGS['selectorTipo']=15;
 
 function goTo(n){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
-  document.getElementById('s'+n).classList.add('active');
+  const screenId=(typeof n==='number')?'s'+n:n;
+  const el=document.getElementById(screenId);
+  if(!el){console.error('Pantalla no encontrada:',screenId);return;}
+  el.classList.add('active');
   document.getElementById('topTitle').textContent=TITLES[n]||'';
-  document.getElementById('topStep').textContent=STEPS[n]||'—';
-  document.getElementById('progFill').style.width=PROGS[n]+'%';
+  document.getElementById('topStep').textContent=STEPS[n]||'';
+  document.getElementById('progFill').style.width=(PROGS[n]||0)+'%';
   window.scrollTo(0,0);
 }
 
 function chkStart(){
   document.getElementById('btnStart').disabled=
-    !(document.getElementById('selEmp').value&&document.getElementById('inpViat').value.trim()&&document.getElementById('selProj').value);
+    !(document.getElementById('selEmp').value&&document.getElementById('selProj').value);
+}
+function irASelectorTipo(){
+  ST.emp=document.getElementById('selEmp').value;
+  ST.viat=document.getElementById('inpViat').value.trim();
+  ST.proj=document.getElementById('selProj').value;
+  if(!ST.emp||!ST.proj){alert('Selecciona tu nombre y proyecto para continuar.');return;}
+  goTo('selectorTipo');
 }
 function seleccionarTipo(tipo){
   ST.tipoGasto=tipo;
   ST.gastos=[];
-  setTimeout(actualizarCamposSegunTipo, 100);
+  if(tipo==='factura'&&!ST.viat){
+    alert('Para Factura Comercial debes ingresar el ID del Viático.\nVuelve al inicio y completa ese campo.');
+    goTo(0);return;
+  }
+  setTimeout(actualizarCamposSegunTipo,100);
   goTo(1);
 }
 
@@ -750,60 +766,30 @@ function nuevoGasto(){
 }
 
 function reset(){
-  ST.emp='';ST.viat='';ST.proj='';ST.gastos=[];
+  ST.emp='';ST.viat='';ST.proj='';ST.gastos=[];ST.tipoGasto='';
   document.getElementById('selEmp').value='';
   document.getElementById('inpViat').value='';
   document.getElementById('selProj').value='';
-  document.getElementById('btnStart').disabled=true;
-  goTo(0);
-}
-
-function cambiarTipo(){
-  // Resetea el gasto actual pero mantiene datos de identificación
-  const z=document.getElementById('photoZone');
-  z.classList.remove('has-photo');
-  z.innerHTML='<span class="photo-ico">📷</span><div class="photo-lbl">Toca para tomar foto</div><div class="photo-hint-txt">o seleccionar de la galería · JPG, PNG · máx 10 MB</div>';
-  document.getElementById('photoInput').value='';
-  document.getElementById('btnAnalizar').disabled=true;
-  document.getElementById('inpSubtotal').value='';
-  document.getElementById('inpIva').value='';
-  document.getElementById('inpImpo').value='';
   document.getElementById('inpObs').value='';
   document.querySelectorAll('.chip').forEach(c=>c.classList.remove('sel'));
+  const z=document.getElementById('photoZone');
+  z.classList.remove('has-photo');
+  z.innerHTML='<span class="photo-ico">📷</span><div class="photo-lbl">Toca para tomar foto</div><div class="photo-hint-txt">o seleccionar de la galerC-a · JPG, PNG · máx 10 MB</div>';
+  document.getElementById('photoInput').value='';
+  document.getElementById('btnAnalizar').disabled=true;
   document.getElementById('btnGuardar').disabled=true;
   document.getElementById('sumSub').textContent='$0';
   document.getElementById('sumTax').textContent='$0';
   document.getElementById('sumTot').textContent='$0';
-  ST.photoB64=null;ST.extracted={};ST.concepto='';ST.tipoGasto='';
-  // Volver a pantalla de selección de tipo
-  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
-  document.getElementById('selectorTipo').classList.add('active');
-  document.getElementById('topTitle').textContent='¿Qué deseas registrar?';
+  ST.photoB64=null;ST.extracted={};ST.concepto='';
+  chkStart();
+  goTo(0);
 }
 
-function showLoad(t,s){document.getElementById('loadTxt').textContent=t||'Procesando...';document.getElementById('loadSub').textContent=s||'';document.getElementById('loadBg').classList.add('open');}
-function hideLoad(){document.getElementById('loadBg').classList.remove('open');}
-
-function openCfg(){
-  document.getElementById('cfgApi').value=CFG.apiKey||'';
-  document.getElementById('cfgSheet').value=CFG.sheetId||'';
-  document.getElementById('cfgToken').value=CFG.sheetToken||'';
-  document.getElementById('cfgEmps').value=CFG.emps.join('\n');
-  document.getElementById('cfgProjs').value=CFG.projs.join('\n');
-  document.getElementById('cfgModal').classList.add('open');
+function cambiarTipo(){
+  ST.tipoGasto='';
+  goTo('selectorTipo');
 }
-function closeCfg(){document.getElementById('cfgModal').classList.remove('open');}
-function saveConfig(){
-  CFG.apiKey=document.getElementById('cfgApi').value.trim();
-  CFG.sheetId=document.getElementById('cfgSheet').value.trim();
-  CFG.sheetToken=document.getElementById('cfgToken').value.trim();
-  CFG.emps=document.getElementById('cfgEmps').value.split('\n').map(s=>s.trim()).filter(Boolean);
-  CFG.projs=document.getElementById('cfgProjs').value.split('\n').map(s=>s.trim()).filter(Boolean);
-  localStorage.setItem('civele_cfg',JSON.stringify(CFG));
-  populateSels();closeCfg();
-  alert('✅ Configuración guardada correctamente');
-}
-document.getElementById('cfgModal').addEventListener('click',function(e){if(e.target===this)closeCfg();});
 </script>
 </body>
-</html> 
+</html>
