@@ -168,6 +168,27 @@ body{font-family:var(--sans);background:var(--surface);color:var(--ink);min-heig
 .civele-footer img{height:26px;width:auto;opacity:0.55;display:block}
 .stripe{display:flex;gap:3px}
 .stripe span{width:10px;height:3px;border-radius:2px}
+
+/* ACTIONS per gasto */
+.gas-actions{display:flex;gap:8px;margin-top:8px}
+.btn-act{padding:5px 12px;border-radius:8px;border:1.5px solid var(--border);font-size:11px;font-weight:700;cursor:pointer;font-family:var(--sans);background:var(--card)}
+.btn-act.del{border-color:#fee2e2;color:#ef4444;background:#fef2f2}
+.btn-act.del:hover{background:#fee2e2}
+.btn-act.edit{border-color:var(--blue-l);color:var(--blue);background:var(--blue-ll)}
+.btn-act.edit:hover{background:var(--blue-l)}
+/* BUDGET BADGE */
+.budget-badge{display:flex;justify-content:space-between;align-items:center;background:var(--blue-ll);border:1.5px solid rgba(1,157,244,.2);border-radius:12px;padding:10px 14px;margin-bottom:12px;font-size:13px}
+.budget-badge.warn{background:#fff7ed;border-color:#fed7aa}
+.budget-badge.over{background:#fef2f2;border-color:#fecaca}
+/* FLOATING ABANDON */
+.fab-abandon{position:fixed;bottom:22px;right:18px;z-index:98;background:#fff;border:1.5px solid #fecaca;color:#ef4444;font-family:var(--sans);font-size:12px;font-weight:700;padding:9px 15px;border-radius:30px;cursor:pointer;box-shadow:0 2px 12px rgba(239,68,68,.18);display:none}
+.fab-abandon.show{display:flex;align-items:center;gap:6px}
+/* ABANDON MODAL */
+.abandon-modal{display:none;position:fixed;inset:0;background:rgba(10,22,40,.7);z-index:500;align-items:center;justify-content:center;padding:20px}
+.abandon-modal.open{display:flex}
+.abandon-box{background:#fff;border-radius:20px;padding:28px 22px;max-width:340px;width:100%;text-align:center}
+.abandon-box h3{font-size:18px;font-weight:800;color:var(--ink);margin-bottom:8px}
+.abandon-box p{font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:22px}
 </style>
 </head>
 <body>
@@ -406,6 +427,7 @@ Otro</textarea></div>
     <div><div class="ticker-lbl">Total registrado</div><div class="ticker-sub" id="s4Count">—</div></div>
     <div class="ticker-val" id="s4Total">$0</div>
   </div>
+  <div id="s4BudgetBadge"></div>
   <div class="gas-list" id="s4List"></div>
   <button class="btn btn-orange" onclick="cerrarViatico()">Finalizar comisión →</button>
   <button class="btn btn-blue" onclick="nuevoGasto()" style="margin-top:10px">+ Agregar gasto</button>
@@ -455,7 +477,7 @@ async function getValidToken() {
 }
 
 
-const ST={emp:'',viat:'',proj:'',gastos:[],photoB64:null,extracted:{},concepto:''};
+const ST={emp:'',viat:'',proj:'',tipoGasto:'',gastos:[],photoB64:null,extracted:{},concepto:'',editandoId:null};
 let CFG={apiKey:'',sheetId:'',sheetToken:'',
   emps:['JUAN FERNANDO DIAZ NEGRETE','MARCONEL ANTONIO BARRETO NEGRETTE','JOSE ALONSO NAVARRO LIZARAZO','CRISTIAN DAVID PAYARES NARVAEZ','SANDRA MILENA IBANEZ RODELO',
         'JAIME LUIS BANQUET HERNANDEZ','JULIO MIGUEL BENITEZ CARRENO','NOVER NEIL PADILLA NARVAEZ'],
@@ -497,6 +519,7 @@ function goTo(n){
   document.getElementById('topStep').textContent=STEPS[n]||'';
   document.getElementById('progFill').style.width=(PROGS[n]||0)+'%';
   window.scrollTo(0,0);
+  actualizarFab(n);
 }
 
 function chkStart(){
@@ -628,37 +651,6 @@ function chkSave(){
   document.getElementById('btnGuardar').disabled=!(tot>0&&ST.concepto);
 }
 
-async function guardarGasto(){
-  showLoad('Guardando gasto...','Registrando en sistema CIVELE');
-  const sub=Number(document.getElementById('inpSubtotal').value)||0;
-  const iva=Number(document.getElementById('inpIva').value)||0;
-  const imp=Number(document.getElementById('inpImpo').value)||0;
-  const tot=sub+iva+imp;
-  const g={
-    id:ST.viat+'-G'+String(ST.gastos.length+1).padStart(3,'0'),
-    viat:ST.viat,emp:ST.emp,proj:ST.proj,
-    tipoGasto:ST.tipoGasto||'factura',
-    fecha:ST.extracted.fecha||new Date().toLocaleDateString('es-CO'),
-    concepto:ST.concepto,
-    subtotal:sub,iva:iva,impoconsumo:imp,total:tot,
-    receptor:ST.extracted.receptor||'',
-    nit:ST.extracted.nit||'',
-    ciudad:ST.extracted.ciudad||'',
-    tipo:ST.extracted.tipo_documento||'',
-    obs:document.getElementById('inpObs').value,
-    photoB64:ST.photoB64,
-    ts:new Date().toISOString()
-  };
-  try{
-    if(CFG.sheetToken&&CFG.sheetId)await pushToSheets(g);
-    else await new Promise(r=>setTimeout(r,900));
-    ST.gastos.push(g);hideLoad();renderS3(g);goTo(3);
-  }catch(err){
-    ST.gastos.push(g);hideLoad();
-    alert('Guardado localmente. Sincronizará cuando haya conexión.');
-    renderS3(g);goTo(3);
-  }
-}
 
 async function pushToSheets(g){
   const row=[g.viat,g.emp,g.fecha,g.concepto,g.subtotal,g.iva,g.impoconsumo,g.total,
@@ -750,7 +742,7 @@ function nuevoGasto(){
   document.getElementById('sumSub').textContent='$0';
   document.getElementById('sumTax').textContent='$0';
   document.getElementById('sumTot').textContent='$0';
-  ST.photoB64=null;ST.extracted={};ST.concepto='';
+  ST.photoB64=null;ST.extracted={};ST.concepto='';ST.editandoId=null;
   goTo(1);
 }
 
@@ -811,51 +803,232 @@ function saveConfig(){
   populateSels();closeCfg();
 }
 
-// ===== FILTRO POR TIPO DE GASTO (S4) =====
-let s4FiltroActivo='todos';
+
+// =====================================================================
+// PERSISTENCIA LOCAL (localStorage)
+// =====================================================================
+function lsKey(){return 'civele_'+ST.emp+'_'+(ST.viat||'rein');}
+
+function saveGastosLocal(){
+  try{localStorage.setItem(lsKey(),JSON.stringify(ST.gastos));}catch(e){}
+}
+function loadGastosLocal(){
+  try{
+    const raw=localStorage.getItem(lsKey());
+    if(raw) ST.gastos=JSON.parse(raw);
+  }catch(e){ST.gastos=[];}
+}
+
+// =====================================================================
+// GUARDAR GASTO → actualiza versión con localStorage
+// =====================================================================
+async function guardarGasto(){
+  showLoad('Guardando gasto...','Registrando en sistema CIVELE');
+  const sub=Number(document.getElementById('inpSubtotal').value)||0;
+  const iva=Number(document.getElementById('inpIva').value)||0;
+  const imp=Number(document.getElementById('inpImpo').value)||0;
+  const tot=sub+iva+imp;
+
+  const esEdicion=!!ST.editandoId;
+  const g={
+    id: esEdicion ? ST.editandoId : (ST.viat||'R')+'-G'+String(Date.now()).slice(-6),
+    viat:ST.viat,emp:ST.emp,proj:ST.proj,
+    tipoGasto:ST.tipoGasto||'factura',
+    fecha:document.getElementById('xFecha')? (document.getElementById('xFecha').value||ST.extracted.fecha||new Date().toLocaleDateString('es-CO')) : (ST.extracted.fecha||new Date().toLocaleDateString('es-CO')),
+    concepto:ST.concepto,
+    subtotal:sub,iva:iva,impoconsumo:imp,total:tot,
+    receptor:ST.extracted.receptor||'',
+    nit:ST.extracted.nit||'',
+    ciudad:ST.extracted.ciudad||'',
+    tipo:ST.extracted.tipo_documento||'',
+    obs:document.getElementById('inpObs').value,
+    photoB64:ST.photoB64,
+    ts:new Date().toISOString()
+  };
+
+  // Si es edición, reemplaza en el array
+  if(esEdicion){
+    const idx=ST.gastos.findIndex(x=>x.id===ST.editandoId);
+    if(idx>=0) ST.gastos[idx]=g; else ST.gastos.push(g);
+    ST.editandoId=null;
+  } else {
+    ST.gastos.push(g);
+  }
+  saveGastosLocal();
+
+  try{
+    if(CFG.sheetToken&&CFG.sheetId&&!esEdicion) await pushToSheets(g);
+    else await new Promise(r=>setTimeout(r,400));
+    hideLoad();renderS3(g);goTo(3);
+  }catch(err){
+    hideLoad();
+    renderS3(g);goTo(3);
+  }
+}
+
+// =====================================================================
+// ELIMINAR GASTO
+// =====================================================================
+function deleteGasto(id){
+  if(!confirm('¿Eliminar este gasto?\nEsta acción no se puede deshacer.')) return;
+  ST.gastos=ST.gastos.filter(g=>g.id!==id);
+  saveGastosLocal();
+  renderS4();
+}
+
+// =====================================================================
+// EDITAR GASTO
+// =====================================================================
+function editGasto(id){
+  const g=ST.gastos.find(x=>x.id===id);
+  if(!g) return;
+  ST.editandoId=id;
+  ST.extracted={receptor:g.receptor,nit:g.nit,fecha:g.fecha,ciudad:g.ciudad,tipo_documento:g.tipo};
+  ST.photoB64=g.photoB64;
+  goTo(2);
+  // Pre-fill s2 fields
+  setTimeout(()=>{
+    const set=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v||'';};
+    set('xReceptor',g.receptor);set('xNit',g.nit);set('xFecha',g.fecha);
+    set('xCiudad',g.ciudad);set('xTipo',g.tipo);set('xIva','');set('xImpo','');
+    set('inpSubtotal',g.subtotal);set('inpIva',g.iva);set('inpImpo',g.impoconsumo);
+    set('inpObs',g.obs||'');
+    document.querySelectorAll('.chip').forEach(c=>c.classList.remove('sel'));
+    document.querySelectorAll('.chip').forEach(c=>{if(c.textContent.includes(g.concepto))c.classList.add('sel');});
+    ST.concepto=g.concepto;
+    calcTotal();
+    document.getElementById('aiDot').classList.add('idle');
+    document.getElementById('aiStatus').textContent='Datos del gasto guardado';
+  },50);
+}
+
+// =====================================================================
+// RENDER S4 — carga desde localStorage y muestra con tabs
+// =====================================================================
+function renderS4(){
+  loadGastosLocal();
+  document.getElementById('s4Title').textContent=ST.emp||'Mis gastos';
+  s4FiltroActivo='todos';
+  // Reset tab styles
+  filtrarGastos('todos');
+  // Mostrar presupuesto si es factura
+  if(ST.tipoGasto==='factura'&&ST.viat) mostrarPresupuesto();
+}
 
 function filtrarGastos(tipo){
   s4FiltroActivo=tipo;
-  ['tabTodos','tabFactura','tabReintegro'].forEach(id=>{
+  const tabs={todos:'tabTodos',factura:'tabFactura',reintegro:'tabReintegro'};
+  Object.entries(tabs).forEach(([k,id])=>{
     const btn=document.getElementById(id);if(!btn)return;
-    btn.style.color='var(--muted)';btn.style.borderBottom='none';btn.style.fontWeight='600';
+    const isActive=(k===tipo);
+    const col=(k==='reintegro'?'var(--orange)':'var(--blue)');
+    btn.style.color=isActive?col:'var(--muted)';
+    btn.style.borderBottom=isActive?('2px solid '+col):'none';
+    btn.style.fontWeight=isActive?'700':'600';
+    btn.style.marginBottom=isActive?'-2px':'0';
   });
-  const activeId=tipo==='todos'?'tabTodos':tipo==='factura'?'tabFactura':'tabReintegro';
-  const col=tipo==='reintegro'?'var(--orange)':'var(--blue)';
-  const ab=document.getElementById(activeId);
-  if(ab){ab.style.color=col;ab.style.borderBottom='2px solid '+col;ab.style.fontWeight='700';ab.style.marginBottom='-2px';}
   renderS4Filtrado();
 }
 
 function renderS4Filtrado(){
-  const gastos=s4FiltroActivo==='todos'?ST.gastos:ST.gastos.filter(g=>g.tipoGasto===s4FiltroActivo);
+  const all=ST.gastos;
+  const gastos=(s4FiltroActivo==='todos')?all:all.filter(g=>g.tipoGasto===s4FiltroActivo);
   const tot=gastos.reduce((s,g)=>s+g.total,0);
-  const label=s4FiltroActivo==='factura'?'Facturas':s4FiltroActivo==='reintegro'?'Reintegros':'Todos los gastos';
+  const label={'todos':'Todos los gastos','factura':'Facturas','reintegro':'Reintegros'}[s4FiltroActivo]||'';
   document.getElementById('s4Total').textContent='$'+tot.toLocaleString('es-CO');
-  document.getElementById('s4Count').textContent=gastos.length+' gasto(s) \xb7 '+label;
+  document.getElementById('s4Count').textContent=gastos.length+' gasto(s) · '+label;
   const list=document.getElementById('s4List');
-  if(!gastos.length){list.innerHTML='<div style="text-align:center;color:var(--muted);padding:36px 0;font-size:14px">No hay gastos de este tipo.</div>';return;}
-  list.innerHTML=gastos.map(g=>`
-<div class="gas-item">
-  <div class="gas-info">
-    <div class="gas-concepto">${g.concepto} <span style="font-size:10px;background:${g.tipoGasto==='reintegro'?'var(--orange-l)':'var(--blue-l)'};color:${g.tipoGasto==='reintegro'?'var(--orange)':'var(--blue)'};padding:2px 7px;border-radius:20px;font-weight:700">${g.tipoGasto==='reintegro'?'Reintegro':'Factura'}</span></div>
-    <div class="gas-receptor">${g.receptor||'Sin receptor'}${g.ciudad?' \xb7 '+g.ciudad:''}</div>
-    <div class="gas-monto">$${g.total.toLocaleString('es-CO')}</div>
-    ${g.iva>0||g.impoconsumo>0?`<div class="gas-tax">IVA $${g.iva.toLocaleString('es-CO')}${g.impoconsumo>0?' \xb7 Imp $'+g.impoconsumo.toLocaleString('es-CO'):''}</div>`:''}
-  </div>
-  <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
-    <div class="gas-ok">\u2713 OK</div>
-    <div style="font-size:10px;color:var(--muted)">${g.fecha}</div>
-  </div>
-</div>`).join('');
+  if(!gastos.length){
+    list.innerHTML='<div style="text-align:center;color:var(--muted);padding:36px 0;font-size:14px">'+(all.length?'No hay gastos de este tipo.':'No hay gastos registrados.')+'</div>';
+    return;
+  }
+  const rows=gastos.map(g=>{
+    const tag=(g.tipoGasto==='reintegro')
+      ?'<span style="font-size:10px;background:var(--orange-l);color:var(--orange);padding:2px 7px;border-radius:20px;font-weight:700">Reintegro</span>'
+      :'<span style="font-size:10px;background:var(--blue-l);color:var(--blue);padding:2px 7px;border-radius:20px;font-weight:700">Factura</span>';
+    const ivaTxt=(g.iva>0||g.impoconsumo>0)
+      ?'<div class="gas-tax">IVA $'+g.iva.toLocaleString('es-CO')+(g.impoconsumo>0?' · Imp $'+g.impoconsumo.toLocaleString('es-CO'):'')+' </div>'
+      :'';
+    return '<div class="gas-item">'
+      +'<div class="gas-info">'
+      +'<div class="gas-concepto">'+g.concepto+' '+tag+'</div>'
+      +'<div class="gas-receptor">'+(g.receptor||'Sin receptor')+(g.ciudad?' · '+g.ciudad:'')+'</div>'
+      +'<div class="gas-monto">$'+g.total.toLocaleString('es-CO')+'</div>'
+      +ivaTxt
+      +'<div class="gas-actions">'
+      +'<button class="btn-act edit" onclick="editGasto(\''+g.id+'\')">&#9998; Editar</button>'
+      +'<button class="btn-act del" onclick="deleteGasto(\''+g.id+'\')">&#128465; Eliminar</button>'
+      +'</div>'
+      +'</div>'
+      +'<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">'
+      +'<div class="gas-ok">✓ OK</div>'
+      +'<div style="font-size:10px;color:var(--muted)">'+g.fecha+'</div>'
+      +'</div>'
+      +'</div>';
+  });
+  list.innerHTML=rows.join('');
 }
 
-function renderS4(){
-  document.getElementById('s4Title').textContent=ST.emp||'Mis gastos';
-  s4FiltroActivo='todos';filtrarGastos('todos');
+// =====================================================================
+// PRESUPUESTO (cruce contra Sheets)
+// =====================================================================
+async function mostrarPresupuesto(){
+  const badge=document.getElementById('s4BudgetBadge');
+  if(!badge) return;
+  const gastado=ST.gastos.filter(g=>g.tipoGasto==='factura').reduce((s,g)=>s+g.total,0);
+  if(!CFG.sheetToken||!CFG.sheetId){
+    badge.innerHTML='<div class="budget-badge"><span>Gastado hasta ahora</span><strong>$'+gastado.toLocaleString('es-CO')+'</strong></div>';
+    return;
+  }
+  badge.innerHTML='<div class="budget-badge"><span>Consultando presupuesto...</span></div>';
+  try{
+    const url='https://sheets.googleapis.com/v4/spreadsheets/'+CFG.sheetId+'/values/Control%20Viaticos!A:Z';
+    const res=await fetch(url,{headers:{Authorization:'Bearer '+CFG.sheetToken}});
+    const data=await res.json();
+    const rows=data.values||[];
+    const row=rows.find(r=>r[0]===ST.viat);
+    if(!row){badge.innerHTML='';return;}
+    // Assume authorized amount is in column index 3 (D)
+    const autorizado=Number((row[3]||'0').replace(/[^0-9.]/g,''))||0;
+    const disponible=autorizado-gastado;
+    const cls=disponible<0?'over':disponible<autorizado*0.1?'warn':'';
+    const ico=disponible<0?'⚠️':disponible<autorizado*0.1?'⚡':'✅';
+    badge.innerHTML='<div class="budget-badge '+cls+'">'
+      +'<div><div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em">Presupuesto viático</div>'
+      +'<div style="font-size:12px;margin-top:2px">Autorizado: <strong>$'+autorizado.toLocaleString('es-CO')+'</strong> &middot; Gastado: <strong>$'+gastado.toLocaleString('es-CO')+'</strong></div></div>'
+      +'<div style="font-size:15px;font-weight:800;color:'+(disponible<0?'#ef4444':disponible<autorizado*0.1?'#f59e0b':'#10b981')+'">'+ico+' $'+Math.abs(disponible).toLocaleString('es-CO')+(disponible<0?' excedido':' disp.')+'</div>'
+      +'</div>';
+  }catch(e){
+    badge.innerHTML='<div class="budget-badge"><span>Gastado: <strong>$'+gastado.toLocaleString('es-CO')+'</strong></span></div>';
+  }
 }
 
-// ===== CONSULTAR ESTADO DE APROBACION (S5) =====
+// =====================================================================
+// BOTON ABANDONAR
+// =====================================================================
+function mostrarAbandon(){
+  document.getElementById('abandonModal').classList.add('open');
+}
+function cerrarAbandon(){
+  document.getElementById('abandonModal').classList.remove('open');
+}
+function confirmarAbandon(){
+  cerrarAbandon();
+  reset();
+}
+function actualizarFab(screenId){
+  const fab=document.getElementById('fabAbandon');
+  if(!fab) return;
+  if(screenId===0||screenId==='s0'||screenId===undefined){
+    fab.classList.remove('show');
+  } else {
+    fab.classList.add('show');
+  }
+}
+
+// =====================================================================
+// CONSULTAR ESTADO DE APROBACION (S5)
+// =====================================================================
 async function consultarEstado(){
   const btn=document.getElementById('btnConsultarEstado');
   const txt=document.getElementById('s5EstadoTxt');
@@ -863,20 +1036,33 @@ async function consultarEstado(){
   if(!CFG.sheetToken||!CFG.sheetId){txt.textContent='Configure el token y el ID de la hoja primero.';return;}
   btn.disabled=true;txt.textContent='Consultando...';
   try{
-    const url=`https://sheets.googleapis.com/v4/spreadsheets/${CFG.sheetId}/values/Control%20Viaticos!A:V`;
-    const res=await fetch(url,{headers:{'Authorization':'Bearer '+CFG.sheetToken}});
+    const url='https://sheets.googleapis.com/v4/spreadsheets/'+CFG.sheetId+'/values/Control%20Viaticos!A:V';
+    const res=await fetch(url,{headers:{Authorization:'Bearer '+CFG.sheetToken}});
     const data=await res.json();
     const rows=data.values||[];
     const row=rows.find(r=>r[0]===ST.viat);
-    if(!row){txt.textContent='No se encontr\xf3 el vi\xe1tico en la hoja.';btn.disabled=false;return;}
+    if(!row){txt.textContent='No se encontró el viático en la hoja.';btn.disabled=false;return;}
     const estado=row[21]||row[20]||row[19]||'Pendiente';
     const color=estado.toLowerCase().includes('aprobado')?'#10b981':estado.toLowerCase().includes('rechazado')?'#ef4444':'#f59e0b';
-    const ico=estado.toLowerCase().includes('aprobado')?'\u2705':estado.toLowerCase().includes('rechazado')?'\u274c':'\u23f3';
-    badge.innerHTML=`<div style="display:inline-block;background:${color}22;border:1.5px solid ${color};border-radius:12px;padding:10px 18px;font-weight:700;color:${color};font-size:14px">${ico} ${estado}</div>`;
-    txt.textContent='\xdaltima consulta: '+new Date().toLocaleTimeString('es-CO');
+    const ico=estado.toLowerCase().includes('aprobado')?'✅':estado.toLowerCase().includes('rechazado')?'❌':'⏳';
+    badge.innerHTML='<div style="display:inline-block;background:'+color+'22;border:1.5px solid '+color+';border-radius:12px;padding:10px 18px;font-weight:700;color:'+color+';font-size:14px">'+ico+' '+estado+'</div>';
+    txt.textContent='Última consulta: '+new Date().toLocaleTimeString('es-CO');
   }catch(e){txt.textContent='Error al consultar. Verifica el token.';}
   btn.disabled=false;
 }
 </script>
+
+<!-- FLOATING ABANDON BUTTON -->
+<button class="fab-abandon" id="fabAbandon" onclick="mostrarAbandon()">✕ Abandonar</button>
+
+<!-- ABANDON MODAL -->
+<div class="abandon-modal" id="abandonModal">
+  <div class="abandon-box">
+    <h3>¿Abandonar registro?</h3>
+    <p>Si abandonas ahora, la información de este registro que aún no hayas guardado se perderá.</p>
+    <button class="btn btn-blue" onclick="confirmarAbandon()" style="margin-bottom:10px">Sí, abandonar</button>
+    <button class="btn btn-ghost" onclick="cerrarAbandon()">Cancelar</button>
+  </div>
+</div>
 </body>
 </html>
