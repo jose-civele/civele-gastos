@@ -218,7 +218,8 @@ body{font-family:var(--sans);background:var(--surface);color:var(--ink);min-heig
     <div class="title" style="font-size:18px;margin-bottom:18px">Parámetros</div>
     <div class="field"><label>Clave API Anthropic</label><input type="password" id="cfgApi" placeholder="sk-ant-api03-..."></div>
     <div class="field"><label>ID Google Sheet</label><input type="text" id="cfgSheet" placeholder="1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs..."></div>
-    <div class="field"><label>Token Google Sheets API (OAuth2)</label><input type="password" id="cfgToken" placeholder="ya29.a0AfH6..."></div>
+    <!-- Token OAuth2 ya no requerido: se usa Service Account en el backend -->
+    <div style="display:none"><input type="hidden" id="cfgToken""></div>
     <div class="notice info"><span class="n-ico">ℹ️</span><span><strong>API Key:</strong> console.anthropic.com → API Keys<br><strong>Token Sheets:</strong> developers.google.com/oauthplayground → scope sheets.googleapis.com<br>Sin claves la app funciona en modo demo.</span></div>
     <div class="field"><label>Empleados (uno por línea)</label><textarea id="cfgEmps" rows="7">Empleado 01
 Empleado 02
@@ -655,12 +656,14 @@ function chkSave(){
 
 
 async function pushToSheets(g){
-  const row=[g.viat,g.emp,g.fecha,g.concepto,g.subtotal,g.iva,g.impoconsumo,g.total,
-             g.receptor,g.nit,g.ciudad,g.tipo,'',g.obs,'Pendiente'];
-  const url=`https://sheets.googleapis.com/v4/spreadsheets/${CFG.sheetId}/values/Detalle%20Gastos!A:O:append?valueInputOption=USER_ENTERED`;
-  const r=await fetch(url,{method:'POST',headers:{'Authorization':'Bearer '+CFG.sheetToken,'Content-Type':'application/json'},body:JSON.stringify({values:[row]})});
-  if(!r.ok)throw new Error('Sheets error '+r.status);
+  const r=await fetch('/api/sheets',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({action:'appendGasto',gasto:g})
+  });
+  const d=await r.json();
+  if(!r.ok) throw new Error(d.error||'Sheets error');
 }
+
 
 function renderS3(g){
   const sesion=ST.gastos.filter(x=>x.tipoGasto===ST.tipoGasto&&(ST.tipoGasto!=='factura'||x.viat===ST.viat));
@@ -691,29 +694,26 @@ ${taxRow}
 function icoConc(c){return({'Transporte terrestre':'🚌','Transporte aéreo':'✈️','Alimentación':'🍽️','Hospedaje':'🏨','Peajes / parqueadero':'🛣️','Materiales':'📦','Comunicaciones':'📡','Otros':'📋'}[c]||'📋');}
 
 async function cerrarViatico(){
-  const gastosSesion=ST.gastos.filter(g=>g.tipoGasto===ST.tipoGasto&&(ST.tipoGasto!=='factura'||g.viat===ST.viat));
-  if(!gastosSesion.length){alert('No hay gastos de esta sesión para finalizar.');return;}
-  showLoad('Cerrando comisión...','Actualizando estado en CIVELE');
-  const tot=gastosSesion.reduce((s,g)=>s+g.total,0);
+  const gastos=ST.gastos;
+  if(!gastos.length){alert('No hay gastos registrados para finalizar.');return;}
+  showLoad('Enviando a CIVELE...','Registrando en Google Sheets');
+  const tot=gastos.reduce((s,g)=>s+g.total,0);
   try{
-    if(CFG.sheetToken&&CFG.sheetId)await updateEstado('Pendiente',tot);
-    else await new Promise(r=>setTimeout(r,1100));
+    const r=await fetch('/api/sheets',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'finalizarSesion',gastos,viat:ST.viat,emp:ST.emp,proj:ST.proj})
+    });
+    const d=await r.json();
+    if(!r.ok) throw new Error(d.error||'Error al enviar');
     hideLoad();renderS5(tot);goTo(5);
-  }catch(e){hideLoad();renderS5(tot);goTo(5);}
+  }catch(e){
+    hideLoad();
+    const conf=confirm('No se pudo enviar a Sheets.\n'+e.message+'\n\n¿Ver el resumen de todos modos?');
+    if(conf){renderS5(tot);goTo(5);}
+  }
 }
 
-async function updateEstado(estado,total){
-  const url=`https://sheets.googleapis.com/v4/spreadsheets/${CFG.sheetId}/values/Control%20Viaticos!A:V`;
-  const res=await fetch(url,{headers:{'Authorization':'Bearer '+CFG.sheetToken}});
-  const data=await res.json();
-  const rows=data.values||[];
-  const idx=rows.findIndex(r=>r[0]===ST.viat);
-  if(idx<0)return;
-  const rowN=idx+1;
-  const upUrl=`https://sheets.googleapis.com/v4/spreadsheets/${CFG.sheetId}/values/Control%20Viaticos!O${rowN}:V${rowN}?valueInputOption=USER_ENTERED`;
-  await fetch(upUrl,{method:'PUT',headers:{'Authorization':'Bearer '+CFG.sheetToken,'Content-Type':'application/json'},
-    body:JSON.stringify({values:[[new Date().toLocaleDateString('es-CO'),total,'','','','','',estado]]})});
-}
+
 
 function renderS5(tot){
   const totIva=ST.gastos.reduce((s,g)=>s+g.iva,0);
@@ -981,30 +981,22 @@ async function mostrarPresupuesto(){
   const badge=document.getElementById('s4BudgetBadge');
   if(!badge) return;
   const gastado=ST.gastos.filter(g=>g.tipoGasto==='factura').reduce((s,g)=>s+g.total,0);
-  if(!CFG.sheetToken||!CFG.sheetId){
-    badge.innerHTML='<div class="budget-badge"><span>Gastado hasta ahora</span><strong>$'+gastado.toLocaleString('es-CO')+'</strong></div>';
-    return;
-  }
   badge.innerHTML='<div class="budget-badge"><span>Consultando presupuesto...</span></div>';
   try{
-    const url='https://sheets.googleapis.com/v4/spreadsheets/'+CFG.sheetId+'/values/Control%20Viaticos!A:Z';
-    const res=await fetch(url,{headers:{Authorization:'Bearer '+CFG.sheetToken}});
-    const data=await res.json();
-    const rows=data.values||[];
-    const row=rows.find(r=>r[0]===ST.viat);
-    if(!row){badge.innerHTML='';return;}
-    // Assume authorized amount is in column index 3 (D)
-    const autorizado=Number((row[3]||'0').replace(/[^0-9.]/g,''))||0;
+    const r=await fetch('/api/sheets',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'consultarPresupuesto',viat:ST.viat})});
+    const d=await r.json();
+    if(!d.encontrado){badge.innerHTML='<div class="budget-badge"><span>Facturas registradas: <strong>$'+gastado.toLocaleString('es-CO')+'</strong></span></div>';return;}
+    const autorizado=d.autorizado;
     const disponible=autorizado-gastado;
     const cls=disponible<0?'over':disponible<autorizado*0.1?'warn':'';
     const ico=disponible<0?'⚠️':disponible<autorizado*0.1?'⚡':'✅';
-    badge.innerHTML='<div class="budget-badge '+cls+'">'
-      +'<div><div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em">Presupuesto viático</div>'
-      +'<div style="font-size:12px;margin-top:2px">Autorizado: <strong>$'+autorizado.toLocaleString('es-CO')+'</strong> &middot; Gastado: <strong>$'+gastado.toLocaleString('es-CO')+'</strong></div></div>'
-      +'<div style="font-size:15px;font-weight:800;color:'+(disponible<0?'#ef4444':disponible<autorizado*0.1?'#f59e0b':'#10b981')+'">'+ico+' $'+Math.abs(disponible).toLocaleString('es-CO')+(disponible<0?' excedido':' disp.')+'</div>'
-      +'</div>';
+    badge.innerHTML='<div class="budget-badge '+cls+'"><div>'
+      +'<div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em">Presupuesto viático</div>'
+      +'<div style="font-size:12px;margin-top:2px">Autorizado: <strong>$'+autorizado.toLocaleString('es-CO')+'</strong> · Gastado: <strong>$'+gastado.toLocaleString('es-CO')+'</strong></div>'
+      +'</div><div style="font-size:15px;font-weight:800;color:'+(disponible<0?'#ef4444':disponible<autorizado*0.1?'#f59e0b':'#10b981')+'">'+ico+' $'+Math.abs(disponible).toLocaleString('es-CO')+(disponible<0?' excedido':' disp.')+'</div></div>';
   }catch(e){
-    badge.innerHTML='<div class="budget-badge"><span>Gastado: <strong>$'+gastado.toLocaleString('es-CO')+'</strong></span></div>';
+    badge.innerHTML='<div class="budget-badge"><span>Facturas registradas: <strong>$'+gastado.toLocaleString('es-CO')+'</strong></span></div>';
   }
 }
 
@@ -1038,7 +1030,20 @@ async function consultarEstado(){
   const btn=document.getElementById('btnConsultarEstado');
   const txt=document.getElementById('s5EstadoTxt');
   const badge=document.getElementById('s5EstadoBadge');
-  if(!CFG.sheetToken||!CFG.sheetId){txt.textContent='Configure el token y el ID de la hoja primero.';return;}
+  if(!ST.viat){txt.textContent='Solo disponible para gastos de viático con ID.';return;}
+  btn.disabled=true;txt.textContent='Consultando...';
+  try{
+    const r=await fetch('/api/sheets',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({action:'consultarEstado',viat:ST.viat})});
+    const d=await r.json();
+    const estado=d.estado||'Pendiente';
+    const color=estado.toLowerCase().includes('aprobado')?'#10b981':estado.toLowerCase().includes('rechazado')?'#ef4444':'#f59e0b';
+    const ico=estado.toLowerCase().includes('aprobado')?'✅':estado.toLowerCase().includes('rechazado')?'❌':'⏳';
+    badge.innerHTML='<div style="display:inline-block;background:'+color+'22;border:1.5px solid '+color+';border-radius:12px;padding:10px 18px;font-weight:700;color:'+color+';font-size:14px">'+ico+' '+estado+'</div>';
+    txt.textContent='Última consulta: '+new Date().toLocaleTimeString('es-CO');
+  }catch(e){txt.textContent='Error: '+e.message;}
+  btn.disabled=false;
+}
   btn.disabled=true;txt.textContent='Consultando...';
   try{
     const url='https://sheets.googleapis.com/v4/spreadsheets/'+CFG.sheetId+'/values/Control%20Viaticos!A:V';
